@@ -37,6 +37,7 @@ func main() {
 	mux.HandleFunc("GET /v1/healthz", handlers.HandleHealthCheck)
 	mux.HandleFunc("GET /v1/err", handlers.HandleErrors)
 
+	mux.HandleFunc("GET /v1/posts", cfg.MiddlewareAuth(cfg.HandleGetUserPosts))
 	mux.HandleFunc("GET /v1/users", cfg.MiddlewareAuth(handlers.HandleGetUser))
 	mux.HandleFunc("GET /v1/feeds", cfg.HandleGetAllFeeds)
 	mux.HandleFunc("GET /v1/feed_follows", cfg.MiddlewareAuth(cfg.HandleGetFollowsForUser))

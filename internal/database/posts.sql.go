@@ -53,3 +53,59 @@ func (q *Queries) CreateRssPost(ctx context.Context, arg CreateRssPostParams) (P
 	)
 	return i, err
 }
+
+const getPostsByUser = `-- name: GetPostsByUser :many
+SELECT p.id, p.title, p.url, p.description, p.published_at, p.feed_id, p.created_at, p.updated_at FROM posts AS p
+RIGHT JOIN feed_follows AS ff
+ON p.feed_id = ff.feed_id
+WHERE ff.user_id = $1
+LIMIT $2
+`
+
+type GetPostsByUserParams struct {
+	UserID uuid.UUID
+	Limit  int32
+}
+
+type GetPostsByUserRow struct {
+	ID          uuid.NullUUID
+	Title       sql.NullString
+	Url         sql.NullString
+	Description sql.NullString
+	PublishedAt sql.NullTime
+	FeedID      uuid.NullUUID
+	CreatedAt   sql.NullTime
+	UpdatedAt   sql.NullTime
+}
+
+func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) ([]GetPostsByUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostsByUser, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostsByUserRow
+	for rows.Next() {
+		var i GetPostsByUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Url,
+			&i.Description,
+			&i.PublishedAt,
+			&i.FeedID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

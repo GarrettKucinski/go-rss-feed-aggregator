@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -148,7 +149,16 @@ func (cfg *Config) RssFeedWorker(nFeeds int) {
 				cfg.DB.MarkFeedFetched(ctx, feedId)
 				feed := rssutils.GetRssFeedData(url)
 				for _, item := range feed.Channel.Item {
-					fmt.Println(item.Title)
+					post := database.CreateRssPostParams{
+						ID:          uuid.New(),
+						FeedID:      feedId,
+						CreatedAt:   time.Now(),
+						UpdatedAt:   time.Now(),
+						Description: sql.NullString{String: item.Description, Valid: true},
+						Title:       item.Title,
+						Url:         url,
+					}
+					cfg.DB.CreateRssPost(ctx, post)
 				}
 			}(feed.Url, feed.ID)
 		}
