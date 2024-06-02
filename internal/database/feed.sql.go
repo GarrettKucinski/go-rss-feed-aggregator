@@ -47,6 +47,15 @@ func (q *Queries) CreateRssFeed(ctx context.Context, arg CreateRssFeedParams) (F
 	return i, err
 }
 
+const deleteFeedFollow = `-- name: DeleteFeedFollow :exec
+DELETE FROM feed_follows where feed_id = $1
+`
+
+func (q *Queries) DeleteFeedFollow(ctx context.Context, feedID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteFeedFollow, feedID)
+	return err
+}
+
 const followRssFeed = `-- name: FollowRssFeed :one
 INSERT INTO feed_follows(id, created_at, updated_at, feed_id, user_id)
   VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at, feed_id, user_id
@@ -80,7 +89,7 @@ func (q *Queries) FollowRssFeed(ctx context.Context, arg FollowRssFeedParams) (F
 }
 
 const getAllRssFeeds = `-- name: GetAllRssFeeds :many
-select id, created_at, updated_at, name, url, user_id from feeds
+SELECT id, created_at, updated_at, name, url, user_id FROM feeds
 `
 
 func (q *Queries) GetAllRssFeeds(ctx context.Context) ([]Feed, error) {
@@ -98,6 +107,39 @@ func (q *Queries) GetAllRssFeeds(ctx context.Context) ([]Feed, error) {
 			&i.UpdatedAt,
 			&i.Name,
 			&i.Url,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllUserFollows = `-- name: GetAllUserFollows :many
+SELECT id, created_at, updated_at, feed_id, user_id from feed_follows where user_id = $1
+`
+
+func (q *Queries) GetAllUserFollows(ctx context.Context, userID uuid.UUID) ([]FeedFollow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUserFollows, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FeedFollow
+	for rows.Next() {
+		var i FeedFollow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.FeedID,
 			&i.UserID,
 		); err != nil {
 			return nil, err

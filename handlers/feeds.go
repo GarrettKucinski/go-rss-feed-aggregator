@@ -45,7 +45,28 @@ func (cfg *Config) HandleCreateFeed(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, feedRes)
+	follow := database.FollowRssFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		FeedID:    feed.ID,
+		UserID:    user.ID,
+	}
+
+	followedFeed, err := cfg.DB.FollowRssFeed(r.Context(), follow)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "error following created feed")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, struct {
+		Feed       database.Feed
+		FeedFollow database.FeedFollow
+	}{
+		Feed:       feedRes,
+		FeedFollow: followedFeed,
+	})
 }
 
 func (cfg *Config) HandleCreateFeedFollow(w http.ResponseWriter, r *http.Request, user database.User) {
@@ -72,4 +93,40 @@ func (cfg *Config) HandleCreateFeedFollow(w http.ResponseWriter, r *http.Request
 	}
 
 	respondWithJSON(w, http.StatusOK, followedFeed)
+}
+
+func (cfg *Config) HandleGetFollowsForUser(w http.ResponseWriter, r *http.Request, user database.User) {
+	follows, err := cfg.DB.GetAllUserFollows(r.Context(), user.ID)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "could not get follows for user")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, follows)
+}
+
+func (cfg *Config) HandleDeleteFeedFollow(w http.ResponseWriter, r *http.Request, user database.User) {
+	type params struct {
+		FeedId uuid.UUID
+	}
+
+	feed := params{}
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&feed)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "could not parse feed Id")
+		return
+	}
+
+	deleteErr := cfg.DB.DeleteFeedFollow(r.Context(), feed.FeedId)
+
+	if deleteErr != nil {
+		respondWithError(w, http.StatusInternalServerError, "unable to delete follow")
+		return
+	}
+
+	respondWithJSON(w, http.StatusNoContent, nil)
 }

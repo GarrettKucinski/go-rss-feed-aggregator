@@ -39,10 +39,13 @@ func main() {
 
 	mux.HandleFunc("GET /v1/users", cfg.MiddlewareAuth(handlers.HandleGetUser))
 	mux.HandleFunc("GET /v1/feeds", cfg.HandleGetAllFeeds)
+	mux.HandleFunc("GET /v1/feed_follows", cfg.MiddlewareAuth(cfg.HandleGetFollowsForUser))
 
 	mux.HandleFunc("POST /v1/users", cfg.HandleCreateUser)
 	mux.HandleFunc("POST /v1/feeds", cfg.MiddlewareAuth(cfg.HandleCreateFeed))
 	mux.HandleFunc("POST /v1/feed_follows", cfg.MiddlewareAuth(cfg.HandleCreateFeedFollow))
+
+	mux.HandleFunc("DELETE /v1/feed_follows", cfg.MiddlewareAuth(cfg.HandleDeleteFeedFollow))
 
 	server := &http.Server{
 		Addr:    ":" + port,
