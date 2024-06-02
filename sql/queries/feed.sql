@@ -14,3 +14,12 @@ INSERT INTO feed_follows(id, created_at, updated_at, feed_id, user_id)
 
 -- name: DeleteFeedFollow :exec
 DELETE FROM feed_follows where feed_id = $1;
+
+-- name: GetNextNFeedsToFetch :many
+SELECT id, url FROM feeds ORDER BY last_fetched_at nulls first LIMIT $1;
+
+-- name: MarkFeedFetched :one
+UPDATE feeds
+  SET last_fetched_at = NOW(), updated_at = NOW()
+  WHERE id = $1
+  RETURNING *;

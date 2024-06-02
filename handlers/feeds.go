@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/garrettkucinski/go-rss-feed-aggregator/internal/database"
+	"github.com/garrettkucinski/go-rss-feed-aggregator/internal/rssutils"
 	"github.com/google/uuid"
 )
 
@@ -129,4 +131,27 @@ func (cfg *Config) HandleDeleteFeedFollow(w http.ResponseWriter, r *http.Request
 	}
 
 	respondWithJSON(w, http.StatusNoContent, nil)
+}
+
+func (cfg *Config) RssFeedWorker(nFeeds int) {
+	wg := &sync.WaitGroup{}
+	ctx := context.Background()
+	ticker := time.NewTicker(60 * time.Second)
+
+	for range ticker.C {
+		feeds, _ := cfg.DB.GetNextNFeedsToFetch(ctx, int32(nFeeds))
+
+		for _, feed := range feeds {
+			wg.Add(1)
+			go func(url string, feedId uuid.UUID) {
+				defer wg.Done()
+				cfg.DB.MarkFeedFetched(ctx, feedId)
+				feed := rssutils.GetRssFeedData(url)
+				for _, item := range feed.Channel.Item {
+					fmt.Println(item.Title)
+				}
+			}(feed.Url, feed.ID)
+		}
+		wg.Wait()
+	}
 }

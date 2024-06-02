@@ -52,6 +52,8 @@ func main() {
 		Handler: mux,
 	}
 
+	go cfg.RssFeedWorker(10)
+
 	log.Printf("Serving on port: %s\n", port)
 	log.Fatal(server.ListenAndServe())
 }
